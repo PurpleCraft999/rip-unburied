@@ -1887,3 +1887,59 @@ fn test_unbury_directory_permissions(
         );
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
+    struct ScopedEnv {
+        saved_env_vars: [Option<String>; 2],
+        saved_allow_rename: Option<std::ffi::OsString>,
+    }
+
+    impl Drop for ScopedEnv {
+        fn drop(&mut self) {
+            std::env::remove_var("__RIP_ALLOW_RENAME");
+            if let Some(v) = self.saved_allow_rename.clone() {
+                std::env::set_var("__RIP_ALLOW_RENAME", v);
+            }
+            restore_env_vars(self.saved_env_vars.clone());
+        }
+    }
+
+    let _env_lock = aquire_lock();
+    let scoped = ScopedEnv {
+        saved_env_vars: cache_and_remove_env_vars(),
+        saved_allow_rename: std::env::var_os("__RIP_ALLOW_RENAME"),
+    };
+
+    // Force the copy path (so `create_dirs_with_permissions` runs).
+    std::env::set_var("__RIP_ALLOW_RENAME", "false");
+
+    let tmp = tempdir().unwrap();
+    std::env::set_var("XDG_DATA_HOME", tmp.path().join("xdg-data-home"));
+
+    let src_root = tmp.path().join("src");
+    let ro_parent = src_root.join("readonly_parent");
+    let child_dir = ro_parent.join("child");
+    fs::create_dir_all(&child_dir).unwrap();
+
+    let file_path = child_dir.join("somefile.txt");
+    fs::write(&file_path, b"hello\n").unwrap();
+
+    // Read-only intermediate dir; rip2 propagates this into the graveyard,
+    // then fails to create the deeper mirrored directory.
+    fs::set_permissions(&ro_parent, fs::Permissions::from_mode(0o555)).unwrap();
+
+    let mut log = Vec::new();
+    let res = rip2::run(
+        &Args {
+            targets: vec![file_path],
+            ..Args::default()
+        },
+        TestMode,
+        &mut log,
+    );
+
+    drop(scoped);
+    res.expect("BUG: bury should succeed, but fails with permission denied due to propagated 0555 perms");
+}
