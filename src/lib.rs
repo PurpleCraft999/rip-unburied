@@ -592,23 +592,20 @@ pub fn copy_file(
 }
 
 pub fn get_graveyard(graveyard: Option<PathBuf>) -> PathBuf {
-    graveyard.map_or_else(
-        || {
-            if let Ok(env_graveyard) = env::var("RIP_GRAVEYARD") {
-                PathBuf::from(env_graveyard)
-            } else if let Ok(mut env_graveyard) = env::var("XDG_DATA_HOME") {
-                if !env_graveyard.ends_with(std::path::MAIN_SEPARATOR) {
-                    env_graveyard.push(std::path::MAIN_SEPARATOR);
-                }
-                env_graveyard.push_str("graveyard");
-                PathBuf::from(env_graveyard)
-            } else {
-                let user = util::get_user();
-                env::temp_dir().join(format!("graveyard-{user}"))
+    graveyard.unwrap_or_else(|| {
+        if let Ok(env_graveyard) = env::var("RIP_GRAVEYARD") {
+            PathBuf::from(env_graveyard)
+        } else if let Ok(mut env_graveyard) = env::var("XDG_DATA_HOME") {
+            if !env_graveyard.ends_with(std::path::MAIN_SEPARATOR) {
+                env_graveyard.push(std::path::MAIN_SEPARATOR);
             }
-        },
-        |flag| flag,
-    )
+            env_graveyard.push_str("graveyard");
+            PathBuf::from(env_graveyard)
+        } else {
+            let user = util::get_user();
+            env::temp_dir().join(format!("graveyard-{user}"))
+        }
+    })
 }
 
 /// Testing module for exposing internal functions to unit tests.
