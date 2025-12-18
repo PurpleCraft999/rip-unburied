@@ -360,32 +360,43 @@ fn build_dirs_to_create_from_graveyard(
     dirs_to_create
 }
 
-/// Create directories with specified permissions
-fn create_dirs_with_permissions(dirs_to_create: &[DirToCreate]) -> Result<(), Error> {
-    // Create directories one by one in order (parent to child)
-    // This assumes dirs_to_create is ordered from root to leaf
-    for dir in dirs_to_create {
-        if !dir.path.exists() {
-            // Create just this directory (parent should already exist)
-            fs::create_dir(&dir.path).map_err(|e| {
-                Error::new(
-                    e.kind(),
-                    format!("Failed to create directory {}: {}", dir.path.display(), e),
-                )
-            })?;
+/// Create the missing directories needed for a copy operation.
+///
+/// Important: permissions are applied *after* the copy finishes; otherwise a non-writable parent
+/// (e.g. mode 0555) can prevent creating deeper directories or writing the file itself.
+fn create_dirs_for_copy(dirs_to_create: &[DirToCreate]) -> Result<Vec<DirToCreate>, Error> {
+    let mut created = Vec::new();
 
-            // Set permissions if we have them
-            if let Some(perms) = &dir.permissions {
-                fs::set_permissions(&dir.path, perms.clone()).map_err(|e| {
-                    Error::new(
-                        e.kind(),
-                        format!("Failed to set permissions on {}: {}", dir.path.display(), e),
-                    )
-                })?;
-            }
+    // Create directories one by one in order (parent to child).
+    // This assumes `dirs_to_create` is ordered from root to leaf.
+    for dir in dirs_to_create {
+        if dir.path.exists() {
+            continue;
         }
+
+        fs::create_dir(&dir.path).map_err(|e| {
+            Error::new(
+                e.kind(),
+                format!("Failed to create directory {}: {}", dir.path.display(), e),
+            )
+        })?;
+        created.push(dir.clone());
     }
 
+    Ok(created)
+}
+
+fn apply_dir_permissions(dirs: &[DirToCreate]) -> Result<(), Error> {
+    for dir in dirs.iter().rev() {
+        if let Some(perms) = &dir.permissions {
+            fs::set_permissions(&dir.path, perms.clone()).map_err(|e| {
+                Error::new(
+                    e.kind(),
+                    format!("Failed to set permissions on {}: {}", dir.path.display(), e),
+                )
+            })?;
+        }
+    }
     Ok(())
 }
 
@@ -408,10 +419,12 @@ pub fn move_target(
     }
 
     // If that didn't work, then we need to copy and rm.
-    create_dirs_with_permissions(dirs_to_create)?;
+    let created_dirs = create_dirs_for_copy(dirs_to_create)?;
 
     if fs::symlink_metadata(target)?.is_dir() {
-        move_dir(target, dest, mode, stream, force)
+        let moved = move_dir(target, dest, mode, stream, force)?;
+        apply_dir_permissions(&created_dirs)?;
+        Ok(moved)
     } else {
         let moved = copy_file(target, dest, mode, stream, force).map_err(|e| {
             Error::new(
@@ -429,6 +442,7 @@ pub fn move_target(
                 format!("Failed to remove file: {}", target.display()),
             )
         })?;
+        apply_dir_permissions(&created_dirs)?;
         Ok(moved)
     }
 }
@@ -442,6 +456,8 @@ pub fn move_dir(
     stream: &mut impl Write,
     force: bool,
 ) -> Result<bool, Error> {
+    let mut dest_dirs_and_perms: Vec<(PathBuf, fs::Permissions)> = Vec::new();
+
     // Walk the source, creating directories and copying files as needed
     for entry in WalkDir::new(target).into_iter().filter_map(Result::ok) {
         // Path without the top-level directory
@@ -463,20 +479,15 @@ pub fn move_dir(
                 )
             })?;
 
-            // Preserve directory permissions
+            // Preserve directory permissions, but apply after traversal so we can
+            // still create children under non-writable directories.
             let source_metadata = fs::metadata(entry.path()).map_err(|e| {
                 Error::new(
                     e.kind(),
                     format!("Failed to get metadata for: {}", entry.path().display()),
                 )
             })?;
-            let source_perms = source_metadata.permissions();
-            fs::set_permissions(&dest_dir, source_perms).map_err(|e| {
-                Error::new(
-                    e.kind(),
-                    format!("Failed to set permissions on: {}", dest_dir.display()),
-                )
-            })?;
+            dest_dirs_and_perms.push((dest_dir, source_metadata.permissions()));
         } else {
             copy_file(entry.path(), &dest.join(orphan), mode, stream, force).map_err(|e| {
                 Error::new(
@@ -496,6 +507,16 @@ pub fn move_dir(
             format!("Failed to remove dir: {}", target.display()),
         )
     })?;
+
+    // Apply collected perms from leaf to root to minimize traversal surprises.
+    for (dest_dir, perms) in dest_dirs_and_perms.into_iter().rev() {
+        fs::set_permissions(&dest_dir, perms).map_err(|e| {
+            Error::new(
+                e.kind(),
+                format!("Failed to set permissions on: {}", dest_dir.display()),
+            )
+        })?;
+    }
 
     Ok(true)
 }

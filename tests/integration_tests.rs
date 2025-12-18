@@ -1912,11 +1912,12 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
         saved_allow_rename: std::env::var_os("__RIP_ALLOW_RENAME"),
     };
 
-    // Force the copy path (so `create_dirs_with_permissions` runs).
+    // Force the copy path (so directory creation happens before copying).
     std::env::set_var("__RIP_ALLOW_RENAME", "false");
 
     let tmp = tempdir().unwrap();
     std::env::set_var("XDG_DATA_HOME", tmp.path().join("xdg-data-home"));
+    let graveyard = rip2::get_graveyard(None);
 
     let src_root = tmp.path().join("src");
     let ro_parent = src_root.join("readonly_parent");
@@ -1927,7 +1928,7 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     fs::write(&file_path, b"hello\n").unwrap();
 
     // Read-only intermediate dir; rip2 propagates this into the graveyard,
-    // then fails to create the deeper mirrored directory.
+    // but should still be able to create deeper mirrored directories.
     fs::set_permissions(&ro_parent, fs::Permissions::from_mode(0o555)).unwrap();
 
     let mut log = Vec::new();
@@ -1941,5 +1942,21 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     );
 
     drop(scoped);
-    res.expect("BUG: bury should succeed, but fails with permission denied due to propagated 0555 perms");
+    res.expect("bury should succeed even if an intermediate source dir is 0555");
+
+    let ro_parent_abs = dunce::canonicalize(&ro_parent).unwrap();
+    let grave_ro_parent = util::join_absolute(&graveyard, ro_parent_abs);
+    assert!(grave_ro_parent.exists(), "mirrored dir should exist");
+
+    let grave_child_dir = grave_ro_parent.join("child");
+    assert!(
+        grave_child_dir.exists(),
+        "child dir should be creatable under mirrored 0555 dir"
+    );
+
+    let grave_file = grave_child_dir.join("somefile.txt");
+    assert!(grave_file.exists(), "file should be copied into graveyard");
+
+    let mode = fs::metadata(&grave_ro_parent).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o555, "mirrored dir should retain 0555 perms");
 }
