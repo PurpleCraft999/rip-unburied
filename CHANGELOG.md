@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.6](https://github.com/MilesCranmer/rip2/compare/v0.9.5...v0.9.6) (2025-12-22)
+
+
+### Bug Fixes
+
+* issue [#129](https://github.com/MilesCranmer/rip2/issues/129) ([ed81273](https://github.com/MilesCranmer/rip2/commit/ed81273a9b8f180bc2804528e8e840d76aeaf05b))
+
 ## [0.9.5](https://github.com/MilesCranmer/rip2/compare/v0.9.4...v0.9.5) (2025-09-03)
 
 
