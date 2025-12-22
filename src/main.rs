@@ -14,8 +14,8 @@ fn main() -> ExitCode {
     match &cli.command {
         Some(Commands::Completions { shell }) => {
             let result = completions::generate_shell_completions(shell, &mut io::stdout());
-            if result.is_err() {
-                eprintln!("{}", result.unwrap_err());
+            if let Err(e) = result {
+                eprintln!("{e}");
                 return ExitCode::FAILURE;
             }
         }
