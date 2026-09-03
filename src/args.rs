@@ -110,6 +110,9 @@ pub struct Args {
     /// Non-interactive mode
     #[arg(short, long)]
     pub force: bool,
+    /// Prints the files being moved to graveyard
+    #[arg(short,long)]
+    pub verbose:bool,
 
     #[command(subcommand)]
     pub command: Option<Commands>,

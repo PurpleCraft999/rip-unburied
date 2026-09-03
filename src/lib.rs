@@ -144,6 +144,7 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
                 &mode,
                 stream,
                 cli.force,
+                cli.verbose
             )?;
         }
     }
@@ -162,6 +163,7 @@ fn bury_target<const FILE_LOCK: bool>(
     mode: &impl util::TestingMode,
     stream: &mut impl Write,
     force: bool,
+    verbose:bool,
 ) -> Result<(), Error> {
     // Check if source exists
     let metadata = &fs::symlink_metadata(target).map_err(|_| {
@@ -180,6 +182,12 @@ fn bury_target<const FILE_LOCK: bool>(
         dunce::canonicalize(cwd.join(target))
             .map_err(|e| Error::new(e.kind(), "Failed to canonicalize path"))?
     };
+
+    if verbose{
+        writeln!(stream,"moving to graveyard: {:?}",source)?;
+    }
+
+
 
     if inspect && !should_we_bury_this(target, source, metadata, mode, stream)? {
         // User chose to not bury the file
