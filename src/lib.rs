@@ -76,8 +76,8 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
         }
         // If path invokes its parent expand it to do so using the cwd
         // such as ../deleted_file.txt -> /tmp/graveyard-$USER/path/to/deleted_file/deleted_file.txt
-        for grave in &mut *graves_to_exhume{
-            if let Ok(path) = grave.strip_prefix("../"){
+        for grave in &mut *graves_to_exhume {
+            if let Ok(path) = grave.strip_prefix("../") {
                 *grave = util::join_absolute(graveyard, util::join_absolute(cwd, path));
                 println!("new path:{grave:?}")
             }

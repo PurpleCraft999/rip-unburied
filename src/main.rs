@@ -1,10 +1,9 @@
 use clap::{Args as _, Command, FromArgMatches as _};
+use rip_unburied::args::Commands;
+use rip_unburied::{args, completions, util};
 use std::env;
 use std::io;
 use std::process::ExitCode;
-use rip_unburied as rip2;
-use rip2::args::Commands;
-use rip2::{args, completions, util};
 
 fn main() -> ExitCode {
     let base_cmd = Command::new("rip");
@@ -20,7 +19,7 @@ fn main() -> ExitCode {
             }
         }
         Some(Commands::Graveyard { seance }) => {
-            let graveyard = rip2::get_graveyard(None);
+            let graveyard = rip_unburied::get_graveyard(None);
             if *seance {
                 let cwd = env::current_dir().expect("Failed to get current directory");
                 let gravepath = util::join_absolute(
@@ -38,7 +37,7 @@ fn main() -> ExitCode {
 
             ////////////////////////////////////////////////////////////
             // Main code ///////////////////////////////////////////////
-            let result = rip2::run(&cli, mode, &mut stream);
+            let result = rip_unburied::run(&cli, mode, &mut stream);
             ////////////////////////////////////////////////////////////
 
             if let Err(ref e) = result {

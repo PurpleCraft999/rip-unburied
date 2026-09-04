@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](no link yet) (not yet released)
+
+### ⚠ BREAKING CHANGES
+
+* updated to rust 2024
+
+### Bug Fixes
+
+* graveyard sub command now prints new line afterwords
+
+
+### Features
+
+* added verbose mode
+* added parent path expansion
+
 ## [0.9.6](https://github.com/MilesCranmer/rip2/compare/v0.9.5...v0.9.6) (2025-12-22)
 
 

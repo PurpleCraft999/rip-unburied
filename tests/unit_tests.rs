@@ -1,8 +1,7 @@
 use lazy_static::lazy_static;
-use rip_unburied as rip2;
-use rip2::args::{Args, Commands, validate_args};
-use rip2::completions;
-use rip2::util::{TestMode, humanize_bytes};
+use rip_unburied::args::{Args, Commands, validate_args};
+use rip_unburied::completions;
+use rip_unburied::util::{TestMode, humanize_bytes};
 use rstest::rstest;
 use std::fs;
 use std::io::{Cursor, ErrorKind};
@@ -77,7 +76,7 @@ fn test_filetypes(
         }
         "big" => {
             let file = fs::File::create(&source_path).unwrap();
-            let len = rip2::BIG_FILE_THRESHOLD + 1;
+            let len = rip_unburied::BIG_FILE_THRESHOLD + 1;
             file.set_len(len).unwrap();
         }
         "fifo" => {
@@ -106,9 +105,10 @@ fn test_filetypes(
     let mode = TestMode;
 
     if copy {
-        rip2::copy_file(&source_path, &dest_path, &mode, &mut log, false).unwrap();
+        rip_unburied::copy_file(&source_path, &dest_path, &mode, &mut log, false).unwrap();
     } else {
-        rip2::move_target(&source_path, &dest_path, true, &mode, &mut log, false, &[]).unwrap();
+        rip_unburied::move_target(&source_path, &dest_path, true, &mode, &mut log, false, &[])
+            .unwrap();
     }
 
     let log_s = String::from_utf8(log).unwrap();
@@ -167,7 +167,7 @@ fn test_filetypes(
 #[rstest]
 fn test_prompt_read(#[values("y", "Y", "n", "N", "", "\n", "q", "Q", "k")] key: &str) {
     let input = Cursor::new(key);
-    let result = rip2::util::yes_no_quit(input);
+    let result = rip_unburied::util::yes_no_quit(input);
     match key {
         "y" | "Y" => assert!(result.unwrap()),
         "n" | "N" | "" | "\n" => assert!(!result.unwrap()),
@@ -237,10 +237,10 @@ fn test_graveyard_path() {
     }
 
     // Check default graveyard path
-    let graveyard = rip2::get_graveyard(None);
+    let graveyard = rip_unburied::get_graveyard(None);
     assert_eq!(
         graveyard,
-        std::env::temp_dir().join(format!("graveyard-{}", rip2::util::get_user()))
+        std::env::temp_dir().join(format!("graveyard-{}", rip_unburied::util::get_user()))
     );
 }
 
@@ -265,7 +265,7 @@ fn fail_move_dir() {
     let dest = path_dest.join("foo");
     let target = path_target.join("bar");
     let mut log = Vec::new();
-    let results = rip2::move_dir(&target, &dest, &TestMode, &mut log, false);
+    let results = rip_unburied::move_dir(&target, &dest, &TestMode, &mut log, false);
     assert!(results.is_err());
     if let Err(e) = results {
         assert!(e.to_string().contains("Failed to remove dir"));
@@ -286,7 +286,7 @@ fn test_directory_size_output() {
 
     let mut output = Vec::new();
     // Test the directory size calculation and output
-    let result = rip2::testing::testable_should_we_bury_this(
+    let result = rip_unburied::testing::testable_should_we_bury_this(
         &PathBuf::from("test_dir"),
         &test_dir,
         &fs::metadata(&test_dir).unwrap(),

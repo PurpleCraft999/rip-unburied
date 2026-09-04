@@ -1,13 +1,12 @@
 use lazy_static::lazy_static;
-use rip_unburied as rip2;
 use predicates::Predicate;
 use predicates::str::is_match;
 use rand::distributions::Alphanumeric;
 use rand::{Rng, SeedableRng};
-use rip2::args::Args;
-use rip2::record;
-use rip2::util::TestMode;
-use rip2::{util};
+use rip_unburied::args::Args;
+use rip_unburied::record;
+use rip_unburied::util;
+use rip_unburied::util::TestMode;
 use rstest::rstest;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -109,7 +108,7 @@ fn test_bury_unbury(#[values(false, true)] decompose: bool, #[values(false, true
     );
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [test_data.path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard.clone()),
@@ -139,7 +138,7 @@ fn test_bury_unbury(#[values(false, true)] decompose: bool, #[values(false, true
     assert_eq!(restored_data_from_grave, test_data.data);
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             graveyard: Some(test_env.graveyard.clone()),
             decompose,
@@ -220,7 +219,7 @@ fn test_env(#[values("RIP_GRAVEYARD", "XDG_DATA_HOME")] env_var: &str) {
     env_move::set_var(env_var, graveyard);
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [test_data.path.clone()].to_vec(),
             // We don't set the graveyard here!
@@ -262,7 +261,7 @@ fn test_duplicate_file(
     );
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [if in_folder {
                 test_data1.path.parent().unwrap().to_path_buf()
@@ -315,7 +314,7 @@ fn test_duplicate_file(
 
     let mut log = Vec::new();
 
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [if in_folder {
                 test_data2.path.parent().unwrap().to_path_buf()
@@ -339,7 +338,7 @@ fn test_duplicate_file(
     env::set_current_dir(&test_env.src).unwrap();
     let mut log = Vec::new();
     // Unbury using seance
-    rip2::run(
+    rip_unburied::run(
         &Args {
             graveyard: Some(test_env.graveyard.clone()),
             unbury: Some(Vec::new()),
@@ -374,7 +373,7 @@ fn test_big_file(#[values(false, true)] force: bool) {
 
     let big_file_path = test_env.src.join("big_file.txt");
     let file = fs::File::create(&big_file_path).unwrap();
-    file.set_len(rip2::BIG_FILE_THRESHOLD + 1).unwrap();
+    file.set_len(rip_unburied::BIG_FILE_THRESHOLD + 1).unwrap();
 
     let expected_graveyard_path = util::join_absolute(
         &test_env.graveyard,
@@ -382,7 +381,7 @@ fn test_big_file(#[values(false, true)] force: bool) {
     );
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [big_file_path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard),
@@ -430,7 +429,7 @@ fn test_same_file_twice() {
     let test_data = TestData::new(&test_env, None);
 
     let mut log = Vec::new();
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             targets: [test_data.path.clone(), test_data.path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard),
@@ -610,7 +609,7 @@ fn test_issue_18() {
 
     // Make a big file
     {
-        let size = rip2::BIG_FILE_THRESHOLD + 1;
+        let size = rip_unburied::BIG_FILE_THRESHOLD + 1;
         let file = fs::File::create(test_env.src.join("uu_meta.zip")).unwrap();
         file.set_len(size).unwrap();
     }
@@ -642,7 +641,7 @@ fn test_issue_18() {
 
     // Make another big file
     {
-        let size = rip2::BIG_FILE_THRESHOLD + 1;
+        let size = rip_unburied::BIG_FILE_THRESHOLD + 1;
         let file = fs::File::create(test_env.src.join("gnu_meta.zip")).unwrap();
         file.set_len(size).unwrap();
     }
@@ -722,7 +721,7 @@ fn test_issue_18() {
 fn test_graveyard_subcommand(#[values(false, true)] seance: bool) {
     let _env_lock = aquire_lock();
 
-    let expected_graveyard = rip2::get_graveyard(None);
+    let expected_graveyard = rip_unburied::get_graveyard(None);
     let cwd = &env::current_dir().unwrap();
     let expected_gravepath =
         util::join_absolute(&expected_graveyard, dunce::canonicalize(cwd).unwrap());
@@ -962,7 +961,7 @@ fn many_nest(#[values(1, 2, 3)] seed: u64) {
 
     // Bury the files interactively
     let mut log = Vec::new();
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             targets: [test_env.src.clone()].to_vec(),
             graveyard: Some(test_env.graveyard.clone()),
@@ -983,7 +982,7 @@ fn many_nest(#[values(1, 2, 3)] seed: u64) {
 
     // Unbury everything
     let mut log = Vec::new();
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             graveyard: Some(test_env.graveyard.clone()),
             unbury: Some(Vec::new()),
@@ -1014,7 +1013,7 @@ fn test_bury_unbury_bury_unbury() {
     );
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [test_data.path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard.clone()),
@@ -1039,7 +1038,7 @@ fn test_bury_unbury_bury_unbury() {
 
     // First unbury
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             graveyard: Some(test_env.graveyard.clone()),
             unbury: Some(Vec::new()),
@@ -1067,7 +1066,7 @@ fn test_bury_unbury_bury_unbury() {
 
     // Second bury
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [test_data.path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard.clone()),
@@ -1094,7 +1093,7 @@ fn test_bury_unbury_bury_unbury() {
 
     // Second unbury
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             graveyard: Some(test_env.graveyard),
             unbury: Some(Vec::new()),
@@ -1215,7 +1214,7 @@ fn test_no_header() {
     // Attempt to run `seance`, which will parse `.record`. We expect it to fail with
     // a helpful error message.
     let mut log = Vec::new();
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             seance: true,
             graveyard: Some(test_env.graveyard.clone()),
@@ -1245,7 +1244,7 @@ fn test_no_header() {
 
     // Try running seance again - it should work this time
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             seance: true,
             graveyard: Some(test_env.graveyard),
@@ -1293,7 +1292,7 @@ fn test_legacy_date_format() {
     let cur_dir = env::current_dir().unwrap();
     env::set_current_dir(&test_env.src).unwrap();
     let mut log = Vec::new();
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             seance: true,
             graveyard: Some(test_env.graveyard),
@@ -1327,7 +1326,7 @@ fn test_force_basic_bury(#[values(false, true)] force: bool) {
     );
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [test_data.path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard),
@@ -1359,7 +1358,7 @@ fn test_force_decompose(#[values(false, true)] force: bool) {
     fs::write(&test_file, "test content").unwrap();
 
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             graveyard: Some(test_env.graveyard.clone()),
             decompose: true,
@@ -1404,7 +1403,7 @@ fn test_force_already_in_graveyard(#[values(false, true)] force: bool) {
 
     // First bury normally (no force)
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [test_data.path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard.clone()),
@@ -1421,7 +1420,7 @@ fn test_force_already_in_graveyard(#[values(false, true)] force: bool) {
 
     // Now try to delete the file from within the graveyard
     let mut log = Vec::new();
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: [expected_graveyard_path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard),
@@ -1459,7 +1458,7 @@ fn test_force_special_file(#[values(false, true)] force: bool) {
     let socket_path = test_env.src.join("test.sock");
     UnixListener::bind(&socket_path).unwrap();
 
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             targets: [socket_path.clone()].to_vec(),
             graveyard: Some(test_env.graveyard),
@@ -1490,7 +1489,7 @@ fn test_force_inspect_error() {
 
     let test_data = TestData::new(&test_env, None);
 
-    let err = rip2::run(
+    let err = rip_unburied::run(
         &Args {
             targets: [test_data.path].to_vec(),
             graveyard: Some(test_env.graveyard),
@@ -1534,7 +1533,7 @@ fn test_directory_permissions_preserved() {
     fs::set_permissions(&secret_file, file_perms).unwrap();
 
     // Rip the file from within the private directory
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             targets: vec![secret_file.clone()],
             graveyard: Some(test_env.graveyard.clone()),
@@ -1616,7 +1615,7 @@ fn test_deeply_nested_directory_permissions() {
     fs::write(&deep_file, "deep content").unwrap();
 
     // Rip the deeply nested file
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             targets: vec![deep_file.clone()],
             graveyard: Some(test_env.graveyard.clone()),
@@ -1707,7 +1706,7 @@ fn test_directory_rip_vs_file_rip_permissions() {
     let canonical_dir2 = dunce::canonicalize(&dir_structure2).unwrap();
 
     // Test 1: Rip the entire directory structure
-    let result1 = rip2::run(
+    let result1 = rip_unburied::run(
         &Args {
             targets: vec![dir_structure1.clone()],
             graveyard: Some(test_env.graveyard.clone()),
@@ -1719,7 +1718,7 @@ fn test_directory_rip_vs_file_rip_permissions() {
     assert!(result1.is_ok(), "Failed to rip directory");
 
     // Test 2: Rip just the file from the second structure
-    let result2 = rip2::run(
+    let result2 = rip_unburied::run(
         &Args {
             targets: vec![file2.clone()],
             graveyard: Some(test_env.graveyard.clone()),
@@ -1800,7 +1799,7 @@ fn test_graveyard_maintains_700_permissions() {
     let canonical_test_file = dunce::canonicalize(&test_file).unwrap();
 
     // Run rip to move the file to the graveyard
-    let result = rip2::run(
+    let result = rip_unburied::run(
         &Args {
             targets: vec![test_file.clone()],
             graveyard: Some(test_env.graveyard.clone()),
@@ -1856,7 +1855,7 @@ fn test_unbury_directory_permissions(
     fs::write(&file, "test").unwrap();
 
     // Bury file
-    rip2::run(
+    rip_unburied::run(
         &Args {
             targets: vec![file.clone()],
             graveyard: Some(test_env.graveyard.clone()),
@@ -1876,7 +1875,7 @@ fn test_unbury_directory_permissions(
     }
 
     // Unbury
-    rip2::run(
+    rip_unburied::run(
         &Args {
             unbury: Some(vec![]),
             graveyard: Some(test_env.graveyard.clone()),
@@ -1938,7 +1937,7 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
 
     let tmp = tempdir().unwrap();
     env_move::set_var("XDG_DATA_HOME", tmp.path().join("xdg-data-home"));
-    let graveyard = rip2::get_graveyard(None);
+    let graveyard = rip_unburied::get_graveyard(None);
 
     let src_root = tmp.path().join("src");
     let ro_parent = src_root.join("readonly_parent");
@@ -1948,12 +1947,12 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     let file_path = child_dir.join("somefile.txt");
     fs::write(&file_path, b"hello\n").unwrap();
 
-    // Read-only intermediate dir; rip2 propagates this into the graveyard,
+    // Read-only intermediate dir; rip_unburied propagates this into the graveyard,
     // but should still be able to create deeper mirrored directories.
     fs::set_permissions(&ro_parent, fs::Permissions::from_mode(0o555)).unwrap();
 
     let mut log = Vec::new();
-    let res = rip2::run(
+    let res = rip_unburied::run(
         &Args {
             targets: vec![file_path],
             ..Args::default()
@@ -1982,27 +1981,45 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     assert_eq!(mode, 0o555, "mirrored dir should retain 0555 perms");
 }
 #[test]
-fn test_parent_path_expansion(){
-
+fn test_parent_path_expansion() {
     let _env_lock = aquire_lock();
-
 
     let test_env = TestEnv::new();
     let current_dir = env::current_dir().unwrap();
     env::set_current_dir(&test_env.src).unwrap();
 
-
-    let test_data = TestData::new(&test_env, Some(&PathBuf::from("test_parent_expension_unbury.txt")));
+    let test_data = TestData::new(
+        &test_env,
+        Some(&PathBuf::from("test_parent_expension_unbury.txt")),
+    );
 
     let mut log = Vec::new();
     //bury the file
-    rip2::run(&Args { targets: vec![test_data.path.clone()], graveyard: Some(test_env.graveyard.clone()), ..Args::default() }, TestMode, &mut log).unwrap();
+    rip_unburied::run(
+        &Args {
+            targets: vec![test_data.path.clone()],
+            graveyard: Some(test_env.graveyard.clone()),
+            ..Args::default()
+        },
+        TestMode,
+        &mut log,
+    )
+    .unwrap();
     //file is gone
     assert!(!test_data.path.exists());
     //users input
     let unbury_path = PathBuf::from("../").join(PathBuf::from(test_data.path.file_name().unwrap()));
     //unburing the file
-    rip2::run(&Args { graveyard: Some(test_env.graveyard),unbury:Some(vec![unbury_path]), ..Args::default() }, TestMode, &mut log).unwrap();
+    rip_unburied::run(
+        &Args {
+            graveyard: Some(test_env.graveyard),
+            unbury: Some(vec![unbury_path]),
+            ..Args::default()
+        },
+        TestMode,
+        &mut log,
+    )
+    .unwrap();
     //file is back
     assert!(test_data.path.exists());
     //reset the dir
