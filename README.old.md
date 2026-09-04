@@ -26,7 +26,7 @@ rip2 is a maintained fork of [nivekuil/rip](https://github.com/nivekuil/rip) wit
 Install:
 
 ```bash
-brew install <name>
+brew install rip2
 ```
 
 Delete files and directories (no `-rf` needed):
@@ -52,7 +52,7 @@ This package is supported on Linux, macOS, and Windows.
 On macOS or Linux with Homebrew installed:
 
 ```bash
-brew install <name>
+brew install rip2
 ```
 
 ### Cargo
@@ -61,15 +61,17 @@ brew install <name>
 2. Then, install this package with cargo:
 
 ```bash
-cargo install --locked <name>
+cargo install --locked rip2
 ```
 
 ### Binaries
 
 Binary releases for different architectures and operating systems are
-made available on the GitHub releases page: https://github.com/<github>/releases/
+made available on the GitHub releases page: https://github.com/MilesCranmer/rip2/releases/
 
 To install, simply open the archive and move the binary somewhere you can run it.
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/rip2.svg?columns=2)](https://repology.org/project/rip2/versions)
 
 ### Nix
 
@@ -159,8 +161,7 @@ Options:
   -f, --force                  Non-interactive mode
   -h, --help                   Print help
   -V, --version                Print version
-  -v, --verbose                Prints the files being moved to graveyard as it goes       
-  
+
 Sub-commands:
   completions  Generate shell completions file
   graveyard    Print the graveyard path
@@ -213,12 +214,6 @@ rip -s
 
 ```bash
 rip -u /tmp/graveyard-jack/home/jack/file1
-# Returned /tmp/graveyard-jack/home/jack/file1 to /home/jack/file1
-```
-
--u also can expand to the current location
-```bash
-rip -u ../file1
 # Returned /tmp/graveyard-jack/home/jack/file1 to /home/jack/file1
 ```
 

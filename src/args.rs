@@ -111,7 +111,7 @@ pub struct Args {
     /// Non-interactive mode
     #[arg(short, long)]
     pub force: bool,
-    /// Prints the files being moved to graveyard
+    /// Prints the files being moved to graveyard as it goes
     #[arg(short, long)]
     pub verbose: bool,
 
