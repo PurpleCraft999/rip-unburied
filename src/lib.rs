@@ -21,7 +21,7 @@ use nix::sys::stat::Mode;
 #[cfg(unix)]
 use nix::unistd::mkfifo;
 #[cfg(unix)]
-use std::os::unix::fs::{symlink, FileTypeExt, PermissionsExt};
+use std::os::unix::fs::{FileTypeExt, PermissionsExt, symlink};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::fs::symlink_file as symlink;
@@ -32,7 +32,7 @@ pub mod record;
 pub mod util;
 
 use args::Args;
-use record::{Record, RecordItem, DEFAULT_FILE_LOCK};
+use record::{DEFAULT_FILE_LOCK, Record, RecordItem};
 
 const LINES_TO_INSPECT: usize = 6;
 const FILES_TO_INSPECT: usize = 6;
@@ -85,10 +85,10 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
         // }
 
         // Otherwise, add the last deleted file
-        if graves_to_exhume.is_empty() {
-            if let Ok(s) = record.get_last_bury() {
-                graves_to_exhume.push(s);
-            }
+        if graves_to_exhume.is_empty()
+            && let Ok(s) = record.get_last_bury()
+        {
+            graves_to_exhume.push(s);
         }
 
         let allow_rename = util::allow_rename();
@@ -152,7 +152,7 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
                 &mode,
                 stream,
                 cli.force,
-                cli.verbose
+                cli.verbose,
             )?;
         }
     }
@@ -171,7 +171,7 @@ fn bury_target<const FILE_LOCK: bool>(
     mode: &impl util::TestingMode,
     stream: &mut impl Write,
     force: bool,
-    verbose:bool,
+    verbose: bool,
 ) -> Result<(), Error> {
     // Check if source exists
     let metadata = &fs::symlink_metadata(target).map_err(|_| {
@@ -191,11 +191,9 @@ fn bury_target<const FILE_LOCK: bool>(
             .map_err(|e| Error::new(e.kind(), "Failed to canonicalize path"))?
     };
 
-    if verbose{
-        writeln!(stream,"moving to graveyard: {:?}",source)?;
+    if verbose {
+        writeln!(stream, "moving to graveyard: {:?}", source)?;
     }
-
-
 
     if inspect && !should_we_bury_this(target, source, metadata, mode, stream)? {
         // User chose to not bury the file
@@ -299,7 +297,7 @@ fn should_we_bury_this(
         writeln!(
             stream,
             "{}: file, {}",
-            &target.to_str().unwrap(),
+            target.to_str().unwrap(),
             util::humanize_bytes(metadata.len())
         )?;
         // Read the file and print the first few lines
@@ -627,7 +625,7 @@ pub fn get_graveyard(graveyard: Option<PathBuf>) -> PathBuf {
 /// Testing module for exposing internal functions to unit tests.
 /// This module is only used for testing purposes and should not be used in production code.
 pub mod testing {
-    use super::{should_we_bury_this, util, Error, Metadata, Path, PathBuf, Write};
+    use super::{Error, Metadata, Path, PathBuf, Write, should_we_bury_this, util};
 
     pub fn testable_should_we_bury_this(
         target: &Path,

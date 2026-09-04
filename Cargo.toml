@@ -1,5 +1,5 @@
 [package]
-edition = '2021'
+edition = '2024'
 name = "rip2"
 version = "0.9.6"
 authors = ["mail@nivekuil.com", "mahid@standingpad.org", "miles.cranmer@gmail.com"]

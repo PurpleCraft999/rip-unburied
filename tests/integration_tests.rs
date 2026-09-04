@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
-use predicates::str::is_match;
 use predicates::Predicate;
+use predicates::str::is_match;
 use rand::distributions::Alphanumeric;
 use rand::{Rng, SeedableRng};
 use rip2::args::Args;
@@ -14,8 +14,23 @@ use std::io::{BufReader, ErrorKind, Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Barrier, Mutex, MutexGuard, PoisonError};
 use std::{env, ffi, iter};
-use tempfile::{tempdir, TempDir};
+use tempfile::{TempDir, tempdir};
 use walkdir::WalkDir;
+
+mod env_move {
+    use std::env;
+    use std::ffi::OsStr;
+    pub fn remove_var<K: AsRef<OsStr>>(key: K) {
+        //SAFTEY the global lock prevents multi-threaded access
+        unsafe { env::remove_var(key) };
+    }
+    pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(key: K, value: V) {
+        //SAFTEY the global lock prevents multi-threaded access
+        unsafe {
+            env::set_var(key, value);
+        }
+    }
+}
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -163,7 +178,7 @@ fn cache_and_remove_env_vars() -> [Option<String>; 2] {
     ENV_VARS.map(|key| {
         // Check if env var exists
         let value = env::var(key).ok();
-        env::remove_var(key);
+        env_move::remove_var(key);
         value
     })
 }
@@ -174,9 +189,9 @@ fn restore_env_vars(default_env_vars: [Option<String>; 2]) {
         .iter()
         .zip(default_env_vars.iter())
         .for_each(|(key, value)| {
-            env::remove_var(key);
+            env_move::remove_var(key);
             if let Some(value) = value {
-                env::set_var(key, value);
+                env_move::set_var(key, value);
             }
         });
 }
@@ -201,7 +216,7 @@ fn test_env(#[values("RIP_GRAVEYARD", "XDG_DATA_HOME")] env_var: &str) {
     );
 
     let graveyard = test_env.graveyard.clone();
-    env::set_var(env_var, graveyard);
+    env_move::set_var(env_var, graveyard);
 
     let mut log = Vec::new();
     rip2::run(
@@ -559,24 +574,28 @@ fn test_cli(
                 "Output was empty for scenario: {scenario}"
             );
             if scenario.contains("seance") {
-                assert!(!names
-                    .iter()
-                    .map(|name| {
-                        let full_match = if scenario.contains("unbury") {
-                            format!("{name} to")
-                        } else {
-                            (*name).to_string()
-                        };
-                        output_stdout.contains(&full_match)
-                    })
-                    .any(|has_name| !has_name));
+                assert!(
+                    !names
+                        .iter()
+                        .map(|name| {
+                            let full_match = if scenario.contains("unbury") {
+                                format!("{name} to")
+                            } else {
+                                (*name).to_string()
+                            };
+                            output_stdout.contains(&full_match)
+                        })
+                        .any(|has_name| !has_name)
+                );
             } else {
                 // Only the last file should be unburied
                 assert!(output_stdout.contains(names[2]));
-                assert!(names
-                    .iter()
-                    .map(|name| output_stdout.contains(name))
-                    .any(|has_name| !has_name));
+                assert!(
+                    names
+                        .iter()
+                        .map(|name| output_stdout.contains(name))
+                        .any(|has_name| !has_name)
+                );
             }
         }
         _ => unreachable!(),
@@ -1483,9 +1502,10 @@ fn test_force_inspect_error() {
     )
     .expect_err("Expected error when using force and inspect together");
 
-    assert!(err
-        .to_string()
-        .contains("-f,--force and -i,--inspect cannot be used together"));
+    assert!(
+        err.to_string()
+            .contains("-f,--force and -i,--inspect cannot be used together")
+    );
 }
 
 #[test]
@@ -1898,9 +1918,9 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
 
     impl Drop for ScopedEnv {
         fn drop(&mut self) {
-            std::env::remove_var("__RIP_ALLOW_RENAME");
+            env_move::remove_var("__RIP_ALLOW_RENAME");
             if let Some(v) = self.saved_allow_rename.clone() {
-                std::env::set_var("__RIP_ALLOW_RENAME", v);
+                env_move::set_var("__RIP_ALLOW_RENAME", v);
             }
             restore_env_vars(self.saved_env_vars.clone());
         }
@@ -1913,10 +1933,10 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     };
 
     // Force the copy path (so directory creation happens before copying).
-    std::env::set_var("__RIP_ALLOW_RENAME", "false");
+    env_move::set_var("__RIP_ALLOW_RENAME", "false");
 
     let tmp = tempdir().unwrap();
-    std::env::set_var("XDG_DATA_HOME", tmp.path().join("xdg-data-home"));
+    env_move::set_var("XDG_DATA_HOME", tmp.path().join("xdg-data-home"));
     let graveyard = rip2::get_graveyard(None);
 
     let src_root = tmp.path().join("src");
@@ -1973,7 +1993,5 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
 //     let r = rip2::run(&Args { graveyard: Some(test_env.graveyard),unbury:Some(vec![unbury_path]), ..Args::default() }, TestMode, &mut log);
 //     println!("{:?}",r);
 //     // assert!(test_data.path.exists())
-
-
 
 // }

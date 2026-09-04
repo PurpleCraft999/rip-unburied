@@ -1,5 +1,5 @@
 use clap::CommandFactory;
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 use clap_complete_nushell::Nushell;
 use std::io::{Error, ErrorKind, Result, Write};
 use std::str::FromStr;
@@ -17,7 +17,7 @@ pub fn generate_shell_completions(shell_s: &str, buf: &mut dyn Write) -> Result<
                 ErrorKind::InvalidInput,
                 format!(
                     "Invalid shell specification: {shell_s}. Available shells: bash, elvish, fish, powershell, zsh, nushell"
-                )
+                ),
             ));
         }
         generate(tryshell.unwrap(), &mut args::Args::command(), "rip", buf);

@@ -239,7 +239,7 @@ impl<const FILE_LOCK: bool> Record<FILE_LOCK> {
         .map_err(|e| {
             Error::new(
                 e.kind(),
-                format!("Failed to write record at {}", &self.path.display()),
+                format!("Failed to write record at {}", self.path.display()),
             )
         })?;
 
@@ -257,7 +257,7 @@ impl<const FILE_LOCK: bool> Record<FILE_LOCK> {
                 ErrorKind::InvalidData,
                 format!(
                     "Invalid record file header at {}:\n  Expected: '{}'\n  Got:      '{}'",
-                    &self.path.display(),
+                    self.path.display(),
                     Self::HEADER,
                     header.trim()
                 ),

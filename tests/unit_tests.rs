@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
-use rip2::args::{validate_args, Args, Commands};
+use rip2::args::{Args, Commands, validate_args};
 use rip2::completions;
-use rip2::util::{humanize_bytes, TestMode};
+use rip2::util::{TestMode, humanize_bytes};
 use rstest::rstest;
 use std::fs;
 use std::io::{Cursor, ErrorKind};
@@ -11,9 +11,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use tempfile::tempdir;
 
 #[cfg(unix)]
-use std::os::unix::fs::symlink;
-#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
 #[cfg(unix)]
 use std::os::unix::net::UnixListener;
 
@@ -227,8 +227,13 @@ fn test_graveyard_path() {
     let _env_lock = aquire_lock();
 
     // Clear env:
-    std::env::remove_var("RIP_GRAVEYARD");
-    std::env::remove_var("XDG_DATA_HOME");
+
+    unsafe {
+        std::env::remove_var("RIP_GRAVEYARD");
+    }
+    unsafe {
+        std::env::remove_var("XDG_DATA_HOME");
+    }
 
     // Check default graveyard path
     let graveyard = rip2::get_graveyard(None);
