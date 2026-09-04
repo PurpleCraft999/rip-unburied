@@ -69,11 +69,12 @@ Print the graveyard path
         _ => unreachable!(),
     }
 }
+const VERSION:&str = concat!(env!("CARGO_PKG_VERSION")," (",env!("CARGO_PKG_NAME"),")");
 
 #[derive(Parser, Debug, Default)]
 #[command(
     name = "rip",
-    version,
+    version= VERSION,
     about,
     long_about = None,
     styles=STYLES,
