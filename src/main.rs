@@ -27,9 +27,9 @@ fn main() -> ExitCode {
                     graveyard,
                     dunce::canonicalize(cwd).expect("Failed to get current directory"),
                 );
-                print!("{}", gravepath.display());
+                println!("{}", gravepath.display());
             } else {
-                print!("{}", graveyard.display());
+                println!("{}", graveyard.display());
             }
         }
         None => {

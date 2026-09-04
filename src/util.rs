@@ -157,3 +157,10 @@ pub fn humanize_bytes(bytes: u64) -> String {
     }
     format!("{bytes} B")
 }
+// pub fn expand_parent_dir(path:&mut PathBuf){
+//     if let Ok(base_path) = path.strip_prefix("../"){
+//         let mut dir = env::current_dir().expect("could not get working dir");
+//         dir.push(base_path.to_path_buf());
+//         *path=dir
+//     }
+// }

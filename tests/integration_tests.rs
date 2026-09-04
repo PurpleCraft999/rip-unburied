@@ -707,9 +707,9 @@ fn test_graveyard_subcommand(#[values(false, true)] seance: bool) {
     let expected_gravepath =
         util::join_absolute(&expected_graveyard, dunce::canonicalize(cwd).unwrap());
     let expected_str = if seance {
-        format!("{}", expected_gravepath.display())
+        format!("{}\n", expected_gravepath.display())
     } else {
-        format!("{}", expected_graveyard.display())
+        format!("{}\n", expected_graveyard.display())
     };
     let mut args = vec!["graveyard"];
     if seance {
@@ -1960,3 +1960,20 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     let mode = fs::metadata(&grave_ro_parent).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o555, "mirrored dir should retain 0555 perms");
 }
+// #[test]
+// fn test_parent_path_expansion(){
+//     let test_env = TestEnv::new();
+//     let test_data = TestData::new(&test_env, Some(&PathBuf::from("test_parent_expension_unbury.txt")));
+//     println!("file path: {:?}",test_data.path);
+//     let mut log = Vec::new();
+//     let _ = rip2::run(&Args { targets: vec![test_data.path.clone()], graveyard: Some(test_env.graveyard.clone()), ..Args::default() }, TestMode, &mut log);
+//     assert!(!test_data.path.exists());
+//     let unbury_path = PathBuf::from("../").join(PathBuf::from(test_data.path.file_name().unwrap()));
+//     // println!("unbury_{unbury_path:?}");
+//     let r = rip2::run(&Args { graveyard: Some(test_env.graveyard),unbury:Some(vec![unbury_path]), ..Args::default() }, TestMode, &mut log);
+//     println!("{:?}",r);
+//     // assert!(test_data.path.exists())
+
+
+
+// }
