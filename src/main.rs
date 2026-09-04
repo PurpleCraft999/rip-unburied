@@ -2,7 +2,7 @@ use clap::{Args as _, Command, FromArgMatches as _};
 use std::env;
 use std::io;
 use std::process::ExitCode;
-
+use rip_unburied as rip2;
 use rip2::args::Commands;
 use rip2::{args, completions, util};
 

@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use rip_unburied as rip2;
 use rip2::args::{Args, Commands, validate_args};
 use rip2::completions;
 use rip2::util::{TestMode, humanize_bytes};

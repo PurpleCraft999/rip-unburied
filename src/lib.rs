@@ -5,7 +5,6 @@ use std::io::{BufRead, BufReader, Error, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 use walkdir::WalkDir;
-
 /// Information needed to create a directory with specific permissions
 #[derive(Debug, Clone)]
 pub struct DirToCreate {

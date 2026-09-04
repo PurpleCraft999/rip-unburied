@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use rip_unburied as rip2;
 use predicates::Predicate;
 use predicates::str::is_match;
 use rand::distributions::Alphanumeric;
@@ -6,7 +7,7 @@ use rand::{Rng, SeedableRng};
 use rip2::args::Args;
 use rip2::record;
 use rip2::util::TestMode;
-use rip2::{self, util};
+use rip2::{util};
 use rstest::rstest;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
