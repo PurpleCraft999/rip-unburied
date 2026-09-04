@@ -1981,18 +1981,30 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     let mode = fs::metadata(&grave_ro_parent).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o555, "mirrored dir should retain 0555 perms");
 }
-// #[test]
-// fn test_parent_path_expansion(){
-//     let test_env = TestEnv::new();
-//     let test_data = TestData::new(&test_env, Some(&PathBuf::from("test_parent_expension_unbury.txt")));
-//     println!("file path: {:?}",test_data.path);
-//     let mut log = Vec::new();
-//     let _ = rip2::run(&Args { targets: vec![test_data.path.clone()], graveyard: Some(test_env.graveyard.clone()), ..Args::default() }, TestMode, &mut log);
-//     assert!(!test_data.path.exists());
-//     let unbury_path = PathBuf::from("../").join(PathBuf::from(test_data.path.file_name().unwrap()));
-//     // println!("unbury_{unbury_path:?}");
-//     let r = rip2::run(&Args { graveyard: Some(test_env.graveyard),unbury:Some(vec![unbury_path]), ..Args::default() }, TestMode, &mut log);
-//     println!("{:?}",r);
-//     // assert!(test_data.path.exists())
+#[test]
+fn test_parent_path_expansion(){
 
-// }
+    let _env_lock = aquire_lock();
+
+
+    let test_env = TestEnv::new();
+    let current_dir = env::current_dir().unwrap();
+    env::set_current_dir(&test_env.src).unwrap();
+
+
+    let test_data = TestData::new(&test_env, Some(&PathBuf::from("test_parent_expension_unbury.txt")));
+
+    let mut log = Vec::new();
+    //bury the file
+    rip2::run(&Args { targets: vec![test_data.path.clone()], graveyard: Some(test_env.graveyard.clone()), ..Args::default() }, TestMode, &mut log).unwrap();
+    //file is gone
+    assert!(!test_data.path.exists());
+    //users input
+    let unbury_path = PathBuf::from("../").join(PathBuf::from(test_data.path.file_name().unwrap()));
+    //unburing the file
+    rip2::run(&Args { graveyard: Some(test_env.graveyard),unbury:Some(vec![unbury_path]), ..Args::default() }, TestMode, &mut log).unwrap();
+    //file is back
+    assert!(test_data.path.exists());
+    //reset the dir
+    env::set_current_dir(current_dir).unwrap();
+}

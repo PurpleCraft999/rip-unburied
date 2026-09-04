@@ -76,12 +76,12 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
         }
         // If path invokes its parent expand it to do so using the cwd
         // such as ../deleted_file.txt -> /tmp/graveyard-$USER/path/to/deleted_file/deleted_file.txt
-        // for grave in &mut *graves_to_exhume{
-        //     if let Ok(path) = grave.strip_prefix("../"){
-        //         *grave = util::join_absolute(graveyard, util::join_absolute(dunce::canonicalize(cwd)?, path));
-        //         println!("new path:{grave:?}")
-        //     }
-        // }
+        for grave in &mut *graves_to_exhume{
+            if let Ok(path) = grave.strip_prefix("../"){
+                *grave = util::join_absolute(graveyard, util::join_absolute(cwd, path));
+                println!("new path:{grave:?}")
+            }
+        }
 
         // Otherwise, add the last deleted file
         if graves_to_exhume.is_empty()
@@ -189,7 +189,7 @@ fn bury_target<const FILE_LOCK: bool>(
         dunce::canonicalize(cwd.join(target))
             .map_err(|e| Error::new(e.kind(), "Failed to canonicalize path"))?
     };
-
+    //If verbose flag is set print every file moved to the graveyard
     if verbose {
         writeln!(stream, "moving to graveyard: {:?}", source)?;
     }
