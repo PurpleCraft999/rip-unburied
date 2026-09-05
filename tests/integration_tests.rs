@@ -1995,7 +1995,9 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
 #[test]
 fn test_parent_path_expansion() {
     let mut test_env = TestEnv::new();
-    test_env.env.set_current_dir(&dunce::canonicalize(&test_env.src).unwrap());
+    test_env
+        .env
+        .set_current_dir(&dunce::canonicalize(&test_env.src).unwrap());
 
     let test_data = TestData::new(
         &test_env,

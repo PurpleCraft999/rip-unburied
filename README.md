@@ -59,6 +59,7 @@ made available on the GitHub releases page: https://github.com/PurpleCraft999/ri
 To install, simply open the archive and move the binary somewhere you can run it.
 
 ### Nix
+**currently broken**
 
 This repository is also flake-compatible, and backwards-compatible with non-flake systems. Just run the following to test it out:
 
