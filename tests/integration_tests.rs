@@ -710,7 +710,6 @@ fn test_issue_18() {
 #[rstest]
 fn test_graveyard_subcommand(#[values(false, true)] seance: bool) {
     let mut env = EnvManager::default();
-    env.set_var("", &util::get_user());
     #[cfg(unix)]
     {
         env.set_var("USER", &util::get_user());
