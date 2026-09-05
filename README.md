@@ -1,12 +1,12 @@
 <div align="center">
 
-# rip2
+# rip unburied
 
 ### A safer, rust-based `rm`
 
-[![crates](https://img.shields.io/crates/v/rip2.svg)](https://crates.io/crates/rip2)
-[![CI](https://github.com/MilesCranmer/rip2/actions/workflows/ci.yml/badge.svg)](https://github.com/MilesCranmer/rip2/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/MilesCranmer/rip2/graph/badge.svg?token=1Ezb7PjJ0Z)](https://codecov.io/gh/MilesCranmer/rip2)
+[![crates](https://img.shields.io/crates/v/rip_unburied.svg)](https://crates.io/crates/rip_unburied)
+[![CI](https://github.com/PurpleCraft999/rip-unburied/actions/workflows/ci.yml/badge.svg)](https://github.com/PurpleCraft999/rip-unburied/actions/workflows/ci.yml)
+<!-- [![codecov](https://codecov.io/gh/MilesCranmer/rip2/graph/badge.svg?token=1Ezb7PjJ0Z)](https://codecov.io/gh/MilesCranmer/rip2) -->
 
 </div>
 
@@ -14,20 +14,15 @@
 
 Deleted files get sent to the graveyard 🪦 (typically `/tmp/graveyard-$USER`, see [notes](#notes) on changing this) under their absolute path, giving you a chance to recover them 🧟. No data is overwritten. If files that share the same path are deleted, they will be renamed as numbered backups.
 
-rip2 is a maintained fork of [nivekuil/rip](https://github.com/nivekuil/rip) with several improvements:
+rip unburied is a fork of [MilesCranmer/rip2](https://github.com/MilesCranmer/rip2) with miniscule improvements:
 
-- **Cross-platform support** (Linux, macOS, Windows)
-- **Modernised codebase** (refactored in modern Rust, merged upstream PRs)
-- **Improved safety** (file locking to prevent races, stricter permission handling, bug fixes)
-- **Better tooling** (shell completions via clap, full test suite with coverage, clearer timestamped output)
+- **2024 rust**
+- **like two new features**
 
 ## Quick start
 
 Install:
 
-```bash
-brew install <name>
-```
 
 Delete files and directories (no `-rf` needed):
 
@@ -47,27 +42,19 @@ More details below.
 
 This package is supported on Linux, macOS, and Windows.
 
-### Homebrew
-
-On macOS or Linux with Homebrew installed:
-
-```bash
-brew install <name>
-```
-
 ### Cargo
 
 1. First [install Rust](https://doc.rust-lang.org/cargo/getting-started/installation.html).
 2. Then, install this package with cargo:
 
 ```bash
-cargo install --locked <name>
+cargo install --locked rip_unburied
 ```
 
 ### Binaries
 
 Binary releases for different architectures and operating systems are
-made available on the GitHub releases page: https://github.com/<github>/releases/
+made available on the GitHub releases page: https://github.com/PurpleCraft999/rip-unburied/releases
 
 To install, simply open the archive and move the binary somewhere you can run it.
 
@@ -76,7 +63,7 @@ To install, simply open the archive and move the binary somewhere you can run it
 This repository is also flake-compatible, and backwards-compatible with non-flake systems. Just run the following to test it out:
 
 ```bash
-nix develop "github:MilesCranmer/rip2"
+nix develop "github:PurpleCraft999/rip-unburied"
 ```
 
 ### Other
@@ -93,7 +80,7 @@ The repo uses `flake-compat` for compatibility, and `naersk` to build the Rust p
 **Add To Path Temporarily (With Flakes)**:
 
 ```bash
-nix shell "github:MilesCranmer/rip2"
+nix shell "github:PurpleCraft999/rip-unburied"
 ```
 
 **Flake minimal setup**:
@@ -103,13 +90,13 @@ nix shell "github:MilesCranmer/rip2"
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    rip2 = {
-      url = "github:MilesCranmer/rip2";
+    rip_unburied = {
+      url = "github:PurpleCraft999/rip-unburied";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, rip2, ... }:
+  outputs = inputs@{ self, nixpkgs, rip_unburied, ... }:
   {
     nixosConfigurations.your-host = let
       system = "x86_64-linux";  # or your system
@@ -121,7 +108,7 @@ nix shell "github:MilesCranmer/rip2"
         # ...
         {
           environment.systemPackages = [
-            rip2.packages.${system}.default
+            rip_unburied.packages.${system}.default
           ];
         }
       ];

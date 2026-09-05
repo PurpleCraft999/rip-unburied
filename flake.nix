@@ -16,7 +16,7 @@
       perSystem = { system, ... }: let
         pkgs = import nixpkgs { inherit system; };
         naersk' = pkgs.callPackage naersk {};
-        rip2 = naersk'.buildPackage {
+        rip_unburied = naersk'.buildPackage {
           src = ./.;
           nativeBuildInputs = [ pkgs.installShellFiles ];
           postInstall = ''
@@ -29,13 +29,13 @@
       in
       with pkgs;
       {
-        packages.default = rip2;
+        packages.default = rip_unburied;
         devShells.default = mkShell {
-          buildInputs = [ rip2 ];
+          buildInputs = [ rip_unburied ];
         };
         apps.default = {
           type = "app";
-          program = "${rip2}/bin/rip";
+          program = "${rip_unburied}/bin/rip";
         };
       };
     };

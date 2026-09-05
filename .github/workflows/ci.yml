@@ -30,7 +30,7 @@ concurrency:
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  CRATE_NAME: rip2
+  CRATE_NAME: rip_unburied
 
 jobs:
   test:
@@ -76,7 +76,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: MilesCranmer/rip2
+          slug: PurpleCraft999/rip-unburied
           files: ./codecov.json
           fail_ci_if_error: false
           verbose: true

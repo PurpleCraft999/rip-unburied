@@ -49,7 +49,7 @@ impl RecordItem {
                 format!(
                     "Found timestamp '{}' from old rip format. \
                     You will need to delete the `.record` file \
-                    and start over with rip2. \
+                    and start over with rip unburied. \
                     You can see the path with `rip graveyard`.",
                     self.time
                 ),

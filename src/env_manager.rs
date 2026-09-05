@@ -1,5 +1,7 @@
 use std::{
-    collections::HashMap, env::{self, VarError}, path::{Path, PathBuf},
+    collections::HashMap,
+    env::{self, VarError},
+    path::{Path, PathBuf},
 };
 #[derive(Debug, Clone)]
 pub struct EnvManager {
