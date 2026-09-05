@@ -1,35 +1,25 @@
-use lazy_static::lazy_static;
 use rip_unburied::args::{Args, Commands, validate_args};
 use rip_unburied::completions;
+use rip_unburied::env_manager::EnvManager;
 use rip_unburied::util::{TestMode, humanize_bytes};
 use rstest::rstest;
 use std::fs;
 use std::io::{Cursor, ErrorKind};
-use std::path::PathBuf;
-use std::process;
-use std::sync::{Mutex, MutexGuard, PoisonError};
-use tempfile::tempdir;
-
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
 use std::os::unix::net::UnixListener;
+use std::path::PathBuf;
+use std::process;
+use tempfile::tempdir;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::fs::symlink_file as symlink;
 
 #[cfg(unix)]
 use std::os::unix::fs::FileTypeExt;
-
-lazy_static! {
-    static ref GLOBAL_LOCK: Mutex<()> = Mutex::new(());
-}
-
-fn aquire_lock() -> MutexGuard<'static, ()> {
-    GLOBAL_LOCK.lock().unwrap_or_else(PoisonError::into_inner)
-}
 
 #[rstest]
 fn test_validation() {
@@ -225,19 +215,20 @@ fn test_completions(
 
 #[rstest]
 fn test_graveyard_path() {
-    let _env_lock = aquire_lock();
-
     // Clear env:
 
-    unsafe {
-        std::env::remove_var("RIP_GRAVEYARD");
-    }
-    unsafe {
-        std::env::remove_var("XDG_DATA_HOME");
-    }
+    // unsafe {
+    //     std::env::remove_var("RIP_GRAVEYARD");
+    // }
+    // unsafe {
+    //     std::env::remove_var("XDG_DATA_HOME");
+    // }
+    let mut env = EnvManager::default();
+    env.remove_var("RIP_GRAVEYARD");
+    env.remove_var("XDG_DATA_HOME");
 
     // Check default graveyard path
-    let graveyard = rip_unburied::get_graveyard(None);
+    let graveyard = rip_unburied::get_graveyard(None, &env);
     assert_eq!(
         graveyard,
         std::env::temp_dir().join(format!("graveyard-{}", rip_unburied::util::get_user()))

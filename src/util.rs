@@ -7,6 +7,8 @@ use std::path::Prefix::Disk;
 use std::path::{Component, Path, PathBuf};
 use std::str::from_utf8;
 
+use crate::env_manager::EnvManager;
+
 fn hash_component(c: &Component) -> String {
     let mut hasher = DefaultHasher::new();
     c.hash(&mut hasher);
@@ -86,9 +88,11 @@ impl TestingMode for TestMode {
     }
 }
 
-pub fn allow_rename() -> bool {
+pub fn allow_rename(env: &EnvManager) -> bool {
     // Test behavior to skip simple rename
-    env::var_os("__RIP_ALLOW_RENAME").is_none_or(|v| v != "false")
+    env.var("__RIP_ALLOW_RENAME")
+        .ok()
+        .is_none_or(|v| v != "false")
 }
 
 /// Prompt for user input, returning True if the first character is 'y' or 'Y'
@@ -157,10 +161,3 @@ pub fn humanize_bytes(bytes: u64) -> String {
     }
     format!("{bytes} B")
 }
-// pub fn expand_parent_dir(path:&mut PathBuf){
-//     if let Ok(base_path) = path.strip_prefix("../"){
-//         let mut dir = env::current_dir().expect("could not get working dir");
-//         dir.push(base_path.to_path_buf());
-//         *path=dir
-//     }
-// }

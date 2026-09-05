@@ -27,19 +27,26 @@ use std::os::windows::fs::symlink_file as symlink;
 
 pub mod args;
 pub mod completions;
+pub mod env_manager;
 pub mod record;
 pub mod util;
-
 use args::Args;
 use record::{DEFAULT_FILE_LOCK, Record, RecordItem};
+
+use crate::env_manager::EnvManager;
 
 const LINES_TO_INSPECT: usize = 6;
 const FILES_TO_INSPECT: usize = 6;
 pub const BIG_FILE_THRESHOLD: u64 = 500_000_000; // 500 MB
 
-pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) -> Result<(), Error> {
+pub fn run(
+    cli: &Args,
+    mode: impl util::TestingMode,
+    stream: &mut impl Write,
+    env: &EnvManager,
+) -> Result<(), Error> {
     args::validate_args(cli)?;
-    let graveyard: &PathBuf = &get_graveyard(cli.graveyard.clone());
+    let graveyard: &PathBuf = &get_graveyard(cli.graveyard.clone(), env);
 
     if !graveyard.exists() {
         fs::create_dir_all(graveyard)?;
@@ -52,7 +59,7 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
 
     // Stores the deleted files
     let record = Record::<DEFAULT_FILE_LOCK>::new(graveyard);
-    let cwd = &env::current_dir()?;
+    let cwd = &env.current_dir();
 
     // If the user wishes to restore everything
     if cli.decompose {
@@ -90,7 +97,7 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
             graves_to_exhume.push(s);
         }
 
-        let allow_rename = util::allow_rename();
+        let allow_rename = util::allow_rename(env);
 
         // Go through the graveyard and exhume all the graves
         for line in record.lines_of_graves(graves_to_exhume) {
@@ -139,7 +146,7 @@ pub fn run(cli: &Args, mode: impl util::TestingMode, stream: &mut impl Write) ->
     } else if cli.targets.is_empty() {
         Args::command().print_help()?;
     } else {
-        let allow_rename = util::allow_rename();
+        let allow_rename = util::allow_rename(env);
         for target in &cli.targets {
             bury_target(
                 target,
@@ -604,16 +611,16 @@ pub fn copy_file(
     }
 }
 
-pub fn get_graveyard(graveyard: Option<PathBuf>) -> PathBuf {
+pub fn get_graveyard(graveyard: Option<PathBuf>, env: &EnvManager) -> PathBuf {
     graveyard.unwrap_or_else(|| {
-        if let Ok(env_graveyard) = env::var("RIP_GRAVEYARD") {
+        if let Ok(env_graveyard) = env.var("RIP_GRAVEYARD") {
             PathBuf::from(env_graveyard)
-        } else if let Ok(mut env_graveyard) = env::var("XDG_DATA_HOME") {
+        } else if let Ok(mut env_graveyard) = env.var("XDG_DATA_HOME").cloned() {
             if !env_graveyard.ends_with(std::path::MAIN_SEPARATOR) {
                 env_graveyard.push(std::path::MAIN_SEPARATOR);
             }
             env_graveyard.push_str("graveyard");
-            PathBuf::from(env_graveyard)
+            PathBuf::from(&*env_graveyard)
         } else {
             let user = util::get_user();
             env::temp_dir().join(format!("graveyard-{user}"))

@@ -1,9 +1,9 @@
-use lazy_static::lazy_static;
 use predicates::Predicate;
 use predicates::str::is_match;
 use rand::distributions::Alphanumeric;
 use rand::{Rng, SeedableRng};
 use rip_unburied::args::Args;
+use rip_unburied::env_manager::EnvManager;
 use rip_unburied::record;
 use rip_unburied::util;
 use rip_unburied::util::TestMode;
@@ -12,41 +12,27 @@ use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufReader, ErrorKind, Read, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Barrier, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Barrier};
 use std::{env, ffi, iter};
 use tempfile::{TempDir, tempdir};
 use walkdir::WalkDir;
 
-mod env_move {
-    use std::env;
-    use std::ffi::OsStr;
-    pub fn remove_var<K: AsRef<OsStr>>(key: K) {
-        //SAFTEY the global lock prevents multi-threaded access
-        unsafe { env::remove_var(key) };
-    }
-    pub fn set_var<K: AsRef<OsStr>, V: AsRef<OsStr>>(key: K, value: V) {
-        //SAFTEY the global lock prevents multi-threaded access
-        unsafe {
-            env::set_var(key, value);
-        }
-    }
-}
-
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-lazy_static! {
-    static ref GLOBAL_LOCK: Mutex<()> = Mutex::new(());
-}
+// lazy_static! {
+//     static ref GLOBAL_LOCK: Mutex<()> = Mutex::new(());
+// }
 
-fn aquire_lock() -> MutexGuard<'static, ()> {
-    GLOBAL_LOCK.lock().unwrap_or_else(PoisonError::into_inner)
-}
+// fn aquire_lock() -> MutexGuard<'static, ()> {
+//     GLOBAL_LOCK.lock().unwrap_or_else(PoisonError::into_inner)
+// }
 
 struct TestEnv {
     _tmpdir: TempDir,
     graveyard: PathBuf,
     src: PathBuf,
+    env: EnvManager,
 }
 
 impl TestEnv {
@@ -55,7 +41,7 @@ impl TestEnv {
         let tmpdir_pathbuf = PathBuf::from(_tmpdir.path());
         let graveyard = tmpdir_pathbuf.join("graveyard");
         let src = tmpdir_pathbuf.join("data");
-
+        let env = EnvManager::default();
         // The graveyard should be created, so we don't test this:
         // fs::create_dir_all(&graveyard).unwrap();
         fs::create_dir_all(&src).unwrap();
@@ -64,6 +50,7 @@ impl TestEnv {
             _tmpdir,
             graveyard,
             src,
+            env,
         }
     }
 }
@@ -97,8 +84,6 @@ impl TestData {
 /// Also checks that the graveyard is deleted when decompose is true
 #[rstest]
 fn test_bury_unbury(#[values(false, true)] decompose: bool, #[values(false, true)] inspect: bool) {
-    let _env_lock = aquire_lock();
-
     let test_env = TestEnv::new();
     let test_data = TestData::new(&test_env, None);
     // And is now in the graveyard
@@ -117,6 +102,7 @@ fn test_bury_unbury(#[values(false, true)] decompose: bool, #[values(false, true
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
     if inspect {
@@ -147,6 +133,7 @@ fn test_bury_unbury(#[values(false, true)] decompose: bool, #[values(false, true
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
     let log_s = String::from_utf8(log).unwrap();
@@ -169,40 +156,38 @@ fn test_bury_unbury(#[values(false, true)] decompose: bool, #[values(false, true
     }
 }
 
-const ENV_VARS: [&str; 2] = ["RIP_GRAVEYARD", "XDG_DATA_HOME"];
-
 // Delete env vars and return them
 // so we can restore them later
-fn cache_and_remove_env_vars() -> [Option<String>; 2] {
-    // This should be the same size as ENV_VARS
-    ENV_VARS.map(|key| {
-        // Check if env var exists
-        let value = env::var(key).ok();
-        env_move::remove_var(key);
-        value
-    })
-}
+// fn cache_and_remove_env_vars() -> [Option<String>; 2] {
+//     // This should be the same size as ENV_VARS
+//     ENV_VARS.map(|key| {
+//         // Check if env var exists
+//         let value = env::var(key).ok();
+//         env_move::remove_var(key);
+//         value
+//     })
+// }
 
-fn restore_env_vars(default_env_vars: [Option<String>; 2]) {
-    // Iterate over the default env vars and restore them
-    ENV_VARS
-        .iter()
-        .zip(default_env_vars.iter())
-        .for_each(|(key, value)| {
-            env_move::remove_var(key);
-            if let Some(value) = value {
-                env_move::set_var(key, value);
-            }
-        });
-}
+// fn restore_env_vars(default_env_vars: [Option<String>; 2]) {
+//     // Iterate over the default env vars and restore them
+//     ENV_VARS
+//         .iter()
+//         .zip(default_env_vars.iter())
+//         .for_each(|(key, value)| {
+//             env_move::remove_var(key);
+//             if let Some(value) = value {
+//                 env_move::set_var(key, value);
+//             }
+//         });
+// }
 
 /// Test that we can set the graveyard from different env variables
 #[rstest]
 fn test_env(#[values("RIP_GRAVEYARD", "XDG_DATA_HOME")] env_var: &str) {
-    let _env_lock = aquire_lock();
+    //
 
-    let default_env_vars = cache_and_remove_env_vars();
-    let test_env = TestEnv::new();
+    // let default_env_vars = cache_and_remove_env_vars();
+    let mut test_env = TestEnv::new();
     let test_data = TestData::new(&test_env, None);
     let modified_graveyard = if env_var == "XDG_DATA_HOME" {
         // XDG version adds a "graveyard" folder
@@ -216,7 +201,7 @@ fn test_env(#[values("RIP_GRAVEYARD", "XDG_DATA_HOME")] env_var: &str) {
     );
 
     let graveyard = test_env.graveyard.clone();
-    env_move::set_var(env_var, graveyard);
+    test_env.env.set_var(env_var, &graveyard.to_string_lossy());
 
     let mut log = Vec::new();
     rip_unburied::run(
@@ -227,6 +212,7 @@ fn test_env(#[values("RIP_GRAVEYARD", "XDG_DATA_HOME")] env_var: &str) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -236,7 +222,7 @@ fn test_env(#[values("RIP_GRAVEYARD", "XDG_DATA_HOME")] env_var: &str) {
     let restored_data = fs::read_to_string(expected_graveyard_path).unwrap();
     assert_eq!(restored_data, test_data.data);
 
-    restore_env_vars(default_env_vars);
+    // restore_env_vars(default_env_vars);
 }
 
 #[rstest]
@@ -244,9 +230,9 @@ fn test_duplicate_file(
     #[values(false, true)] in_folder: bool,
     #[values(false, true)] inspect: bool,
 ) {
-    let _env_lock = aquire_lock();
+    //
 
-    let test_env = TestEnv::new();
+    let mut test_env = TestEnv::new();
 
     // Bury the first file
     let test_data1 = if in_folder {
@@ -275,6 +261,7 @@ fn test_duplicate_file(
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -327,6 +314,7 @@ fn test_duplicate_file(
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -334,8 +322,7 @@ fn test_duplicate_file(
     assert!(expected_graveyard_path2.exists());
 
     // Navigate to the test_env.src directory
-    let cur_dir = env::current_dir().unwrap();
-    env::set_current_dir(&test_env.src).unwrap();
+    test_env.env.set_current_dir(&test_env.src);
     let mut log = Vec::new();
     // Unbury using seance
     rip_unburied::run(
@@ -347,6 +334,7 @@ fn test_duplicate_file(
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -361,14 +349,12 @@ fn test_duplicate_file(
             test_env.src
         );
     }
-    env::set_current_dir(cur_dir).unwrap();
 }
 
 /// Test that big files trigger special behavior.
 /// In this test, we simply delete it automatically.
 #[rstest]
 fn test_big_file(#[values(false, true)] force: bool) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     let big_file_path = test_env.src.join("big_file.txt");
@@ -390,6 +376,7 @@ fn test_big_file(#[values(false, true)] force: bool) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -423,8 +410,6 @@ fn test_big_file(#[values(false, true)] force: bool) {
 /// throws an error
 #[rstest]
 fn test_same_file_twice() {
-    let _env_lock = aquire_lock();
-
     let test_env = TestEnv::new();
     let test_data = TestData::new(&test_env, None);
 
@@ -437,6 +422,7 @@ fn test_same_file_twice() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     );
 
     // Check the first use triggered the removal:
@@ -451,15 +437,18 @@ fn test_same_file_twice() {
     assert!(err_msg.contains("no such file or directory"));
 }
 
-fn cli_runner<I, S>(args: I, cwd: Option<&PathBuf>) -> assert_cmd::Command
+fn cli_runner<I, S>(args: I, cwd: Option<&PathBuf>, env: &EnvManager) -> assert_cmd::Command
 where
     I: IntoIterator<Item = S>,
     S: AsRef<ffi::OsStr>,
 {
     let mut cmd = assert_cmd::Command::cargo_bin("rip").unwrap();
+    cmd.env_clear();
     if let Some(cwd) = cwd {
         cmd.current_dir(cwd);
     }
+
+    cmd.envs(env.envs().iter());
     for arg in args {
         cmd.arg(arg);
     }
@@ -485,15 +474,14 @@ fn test_cli(
     )]
     scenario: &str,
 ) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Early exit for some tests
     if scenario.starts_with("help") {
         // Get output
         let mut cmd = match scenario {
-            "help" => cli_runner(["--help"], None),
-            "help2" => cli_runner(iter::empty::<&str>(), None),
+            "help" => cli_runner(["--help"], None, &test_env.env),
+            "help2" => cli_runner(iter::empty::<&str>(), None, &test_env.env),
             _ => unreachable!(),
         };
         let output = cmd.output().unwrap();
@@ -529,7 +517,7 @@ fn test_cli(
             let mut args = base_args.clone();
             args.push("--inspect");
             args.push(names[0]);
-            let mut cmd = cli_runner(args, Some(&test_env.src));
+            let mut cmd = cli_runner(args, Some(&test_env.src), &test_env.env);
             match scenario {
                 "inspect" => cmd.write_stdin("y"),
                 "inspect_no" => cmd.write_stdin("n"),
@@ -553,7 +541,7 @@ fn test_cli(
         scenario if scenario.starts_with("bury") => {
             let mut bury_args = base_args.clone();
             bury_args.extend(&names);
-            let mut bury_cmd = cli_runner(&bury_args, Some(&test_env.src));
+            let mut bury_cmd = cli_runner(&bury_args, Some(&test_env.src), &test_env.env);
             let output_stdout = quick_cmd_output(&mut bury_cmd);
             assert!(output_stdout.is_empty());
             // Check only whitespace characters:
@@ -567,7 +555,7 @@ fn test_cli(
             if scenario.contains("seance") {
                 unbury_args.push("--seance");
             }
-            let mut final_cmd = cli_runner(&unbury_args, Some(&test_env.src));
+            let mut final_cmd = cli_runner(&unbury_args, Some(&test_env.src), &test_env.env);
             let output_stdout = quick_cmd_output(&mut final_cmd);
             assert!(
                 !output_stdout.is_empty(),
@@ -604,7 +592,6 @@ fn test_cli(
 
 #[rstest]
 fn test_issue_18() {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Make a big file
@@ -627,6 +614,7 @@ fn test_issue_18() {
                 "uu_meta.zip",
             ],
             Some(&test_env.src),
+            &test_env.env,
         )
         .write_stdin("\n")
         .assert()
@@ -660,6 +648,7 @@ fn test_issue_18() {
                 "gnu_meta.zip",
             ],
             Some(&test_env.src),
+            &test_env.env,
         )
         .write_stdin("q\n")
         .assert()
@@ -698,6 +687,7 @@ fn test_issue_18() {
                 "gnu_meta.zip",
             ],
             Some(&test_env.src),
+            &test_env.env,
         )
         .write_stdin("y\n")
         .assert()
@@ -719,10 +709,19 @@ fn test_issue_18() {
 
 #[rstest]
 fn test_graveyard_subcommand(#[values(false, true)] seance: bool) {
-    let _env_lock = aquire_lock();
-
-    let expected_graveyard = rip_unburied::get_graveyard(None);
-    let cwd = &env::current_dir().unwrap();
+    let mut env = EnvManager::default();
+    env.set_var("", &util::get_user());
+    #[cfg(unix)]
+    {
+        env.set_var("USER", &util::get_user());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        env.set_var("USERNAME", &util::get_user());
+    }
+    env.remove_var("__RIP_ALLOW_RENAME");
+    let expected_graveyard = rip_unburied::get_graveyard(None, &env);
+    let cwd = &env.current_dir();
     let expected_gravepath =
         util::join_absolute(&expected_graveyard, dunce::canonicalize(cwd).unwrap());
     let expected_str = if seance {
@@ -734,7 +733,7 @@ fn test_graveyard_subcommand(#[values(false, true)] seance: bool) {
     if seance {
         args.push("-s");
     }
-    cli_runner(args, None)
+    cli_runner(args, None, &env)
         .assert()
         .success()
         .stdout(expected_str);
@@ -744,8 +743,7 @@ fn test_graveyard_subcommand(#[values(false, true)] seance: bool) {
 fn test_issue_112() {
     // This issue only shows up if we use the CLI, not if we use
     // the library calls directly.
-    let _env_lock = aquire_lock();
-    let test_env = TestEnv::new();
+    let mut test_env = TestEnv::new();
 
     // Setup: create and bury two files
     let test_data1 = TestData::new(&test_env, Some(&PathBuf::from("file1.txt")));
@@ -754,8 +752,7 @@ fn test_issue_112() {
     let path2 = test_data2.path;
 
     // Change to test dir and bury both files
-    let cur_dir = env::current_dir().unwrap();
-    env::set_current_dir(&test_env.src).unwrap();
+    test_env.env.set_current_dir(&test_env.src);
 
     cli_runner(
         [
@@ -763,7 +760,8 @@ fn test_issue_112() {
             test_env.graveyard.to_str().unwrap(),
             "file1.txt",
         ],
-        None,
+        Some(&test_env.src),
+        &test_env.env,
     )
     .assert()
     .success();
@@ -773,7 +771,8 @@ fn test_issue_112() {
             test_env.graveyard.to_str().unwrap(),
             "file2.txt",
         ],
-        None,
+        Some(&test_env.src),
+        &test_env.env,
     )
     .assert()
     .success();
@@ -781,7 +780,8 @@ fn test_issue_112() {
     // Get file1's graveyard path via seance
     let seance_output = cli_runner(
         ["--graveyard", test_env.graveyard.to_str().unwrap(), "-s"],
-        None,
+        Some(&test_env.src),
+        &test_env.env,
     )
     .output()
     .unwrap();
@@ -800,7 +800,8 @@ fn test_issue_112() {
             "-u",
             file1_grave_path,
         ],
-        None,
+        Some(&test_env.src),
+        &test_env.env,
     )
     .output()
     .unwrap();
@@ -817,13 +818,10 @@ fn test_issue_112() {
         !output_text.contains("file2.txt"),
         "Output should not mention file2.txt"
     );
-
-    env::set_current_dir(cur_dir).unwrap();
 }
 
 #[rstest]
 fn read_empty_record() {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
     let cwd = env::current_dir().unwrap();
     fs::create_dir(&test_env.graveyard).unwrap();
@@ -970,6 +968,7 @@ fn many_nest(#[values(1, 2, 3)] seed: u64) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     );
     assert!(result.is_ok());
     let log_s = String::from_utf8(log).unwrap();
@@ -990,6 +989,7 @@ fn many_nest(#[values(1, 2, 3)] seed: u64) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     );
     assert!(result.is_ok());
 
@@ -1000,8 +1000,6 @@ fn many_nest(#[values(1, 2, 3)] seed: u64) {
 
 #[rstest]
 fn test_bury_unbury_bury_unbury() {
-    let _env_lock = aquire_lock();
-
     let test_env = TestEnv::new();
     let test_data = TestData::new(&test_env, None);
     let normalized_test_data_path = dunce::canonicalize(&test_data.path).unwrap();
@@ -1021,6 +1019,7 @@ fn test_bury_unbury_bury_unbury() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1046,6 +1045,7 @@ fn test_bury_unbury_bury_unbury() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1074,6 +1074,7 @@ fn test_bury_unbury_bury_unbury() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1101,6 +1102,7 @@ fn test_bury_unbury_bury_unbury() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1131,7 +1133,6 @@ fn test_concurrent_writes(#[values(true, false)] file_lock: bool) {
     }
 }
 fn _test_concurrent_writes<const FILE_LOCK: bool>() {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
     fs::create_dir(&test_env.graveyard).unwrap();
     let record = record::Record::<FILE_LOCK>::new(&test_env.graveyard);
@@ -1201,7 +1202,6 @@ fn _test_concurrent_writes<const FILE_LOCK: bool>() {
 
 #[rstest]
 fn test_no_header() {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
     fs::create_dir_all(&test_env.graveyard).unwrap();
     let record_file = test_env.graveyard.join(".record");
@@ -1222,6 +1222,7 @@ fn test_no_header() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     );
 
     // Check that we got the right error
@@ -1252,14 +1253,14 @@ fn test_no_header() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 }
 
 #[rstest]
 fn test_legacy_date_format() {
-    let _env_lock = aquire_lock();
-    let test_env = TestEnv::new();
+    let mut test_env = TestEnv::new();
     fs::create_dir_all(&test_env.graveyard).unwrap();
 
     // Create source and destination paths with actual files
@@ -1289,8 +1290,7 @@ fn test_legacy_date_format() {
     )
     .unwrap();
 
-    let cur_dir = env::current_dir().unwrap();
-    env::set_current_dir(&test_env.src).unwrap();
+    test_env.env.set_current_dir(&test_env.src);
     let mut log = Vec::new();
     let result = rip_unburied::run(
         &Args {
@@ -1300,8 +1300,8 @@ fn test_legacy_date_format() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     );
-    env::set_current_dir(cur_dir).unwrap();
 
     // Expect error about old format
     let err = result.expect_err("Expected error from old rip format line");
@@ -1316,7 +1316,6 @@ fn test_legacy_date_format() {
 
 #[rstest]
 fn test_force_basic_bury(#[values(false, true)] force: bool) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     let test_data = TestData::new(&test_env, None);
@@ -1335,6 +1334,7 @@ fn test_force_basic_bury(#[values(false, true)] force: bool) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1349,7 +1349,6 @@ fn test_force_basic_bury(#[values(false, true)] force: bool) {
 
 #[rstest]
 fn test_force_decompose(#[values(false, true)] force: bool) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Create a file in the graveyard to verify it gets deleted
@@ -1367,6 +1366,7 @@ fn test_force_decompose(#[values(false, true)] force: bool) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1391,7 +1391,6 @@ fn test_force_decompose(#[values(false, true)] force: bool) {
 
 #[rstest]
 fn test_force_already_in_graveyard(#[values(false, true)] force: bool) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Create and bury a test file first
@@ -1411,6 +1410,7 @@ fn test_force_already_in_graveyard(#[values(false, true)] force: bool) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1429,6 +1429,7 @@ fn test_force_already_in_graveyard(#[values(false, true)] force: bool) {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
 
@@ -1451,7 +1452,6 @@ fn test_force_already_in_graveyard(#[values(false, true)] force: bool) {
 #[cfg(unix)]
 #[rstest]
 fn test_force_special_file(#[values(false, true)] force: bool) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     use std::os::unix::net::UnixListener;
@@ -1467,6 +1467,7 @@ fn test_force_special_file(#[values(false, true)] force: bool) {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     );
 
     if force {
@@ -1484,7 +1485,6 @@ fn test_force_special_file(#[values(false, true)] force: bool) {
 
 #[rstest]
 fn test_force_inspect_error() {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     let test_data = TestData::new(&test_env, None);
@@ -1499,6 +1499,7 @@ fn test_force_inspect_error() {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     )
     .expect_err("Expected error when using force and inspect together");
 
@@ -1511,7 +1512,6 @@ fn test_force_inspect_error() {
 #[test]
 #[cfg(unix)]
 fn test_directory_permissions_preserved() {
-    let _lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Create a private directory with restrictive permissions (700)
@@ -1541,6 +1541,7 @@ fn test_directory_permissions_preserved() {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     );
 
     assert!(result.is_ok(), "Failed to rip file: {:?}", result);
@@ -1579,7 +1580,6 @@ fn test_directory_permissions_preserved() {
 #[test]
 #[cfg(unix)]
 fn test_deeply_nested_directory_permissions() {
-    let _lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Create deeply nested directories with alternating permissions
@@ -1623,6 +1623,7 @@ fn test_deeply_nested_directory_permissions() {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     );
 
     assert!(result.is_ok(), "Failed to rip file");
@@ -1669,7 +1670,6 @@ fn test_deeply_nested_directory_permissions() {
 #[test]
 #[cfg(unix)]
 fn test_directory_rip_vs_file_rip_permissions() {
-    let _lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Create two identical directory structures
@@ -1714,6 +1714,7 @@ fn test_directory_rip_vs_file_rip_permissions() {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     );
     assert!(result1.is_ok(), "Failed to rip directory");
 
@@ -1726,6 +1727,7 @@ fn test_directory_rip_vs_file_rip_permissions() {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     );
     assert!(result2.is_ok(), "Failed to rip file");
 
@@ -1780,7 +1782,6 @@ fn test_graveyard_maintains_700_permissions() {
     // even when files are moved from directories with different permissions (like 755).
     // This is critical for security - the graveyard should only be accessible by the owner.
 
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Create a source file in a directory with 755 permissions (standard permissions)
@@ -1807,6 +1808,7 @@ fn test_graveyard_maintains_700_permissions() {
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     );
 
     assert!(result.is_ok(), "Failed to rip file");
@@ -1840,7 +1842,6 @@ fn test_unbury_directory_permissions(
     )]
     keep_dir: bool,
 ) {
-    let _env_lock = aquire_lock();
     let test_env = TestEnv::new();
 
     // Setup directory with permissions
@@ -1863,6 +1864,7 @@ fn test_unbury_directory_permissions(
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     )
     .unwrap();
 
@@ -1883,6 +1885,7 @@ fn test_unbury_directory_permissions(
         },
         TestMode,
         &mut Vec::new(),
+        &test_env.env,
     )
     .unwrap();
 
@@ -1912,32 +1915,40 @@ fn test_unbury_directory_permissions(
 #[test]
 fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
     struct ScopedEnv {
-        saved_env_vars: [Option<String>; 2],
-        saved_allow_rename: Option<std::ffi::OsString>,
+        saved_env_vars: EnvManager,
+        saved_allow_rename: Option<String>,
     }
 
-    impl Drop for ScopedEnv {
-        fn drop(&mut self) {
-            env_move::remove_var("__RIP_ALLOW_RENAME");
+    impl ScopedEnv {
+        fn remove(self, env: &mut EnvManager) {
+            // env_move::remove_var("__RIP_ALLOW_RENAME");
+            env.remove_var("__RIP_ALLOW_RENAME");
             if let Some(v) = self.saved_allow_rename.clone() {
-                env_move::set_var("__RIP_ALLOW_RENAME", v);
+                // env_move::set_var("__RIP_ALLOW_RENAME", v);
+                env.set_var("__RIP_ALLOW_RENAME", &v);
             }
-            restore_env_vars(self.saved_env_vars.clone());
+            // restore_env_vars(self.saved_env_vars.clone());
+            *env = self.saved_env_vars
         }
     }
 
-    let _env_lock = aquire_lock();
+    let mut env = EnvManager::default();
     let scoped = ScopedEnv {
-        saved_env_vars: cache_and_remove_env_vars(),
-        saved_allow_rename: std::env::var_os("__RIP_ALLOW_RENAME"),
+        saved_env_vars: env.clone(),
+        saved_allow_rename: env
+            .var("__RIP_ALLOW_RENAME")
+            .map_or_else(|_| None, |s| Some(s.clone())),
     };
 
     // Force the copy path (so directory creation happens before copying).
-    env_move::set_var("__RIP_ALLOW_RENAME", "false");
+    env.set_var("__RIP_ALLOW_RENAME", "false");
 
     let tmp = tempdir().unwrap();
-    env_move::set_var("XDG_DATA_HOME", tmp.path().join("xdg-data-home"));
-    let graveyard = rip_unburied::get_graveyard(None);
+    env.set_var(
+        "XDG_DATA_HOME",
+        &tmp.path().join("xdg-data-home").to_string_lossy(),
+    );
+    let graveyard = rip_unburied::get_graveyard(None, &env);
 
     let src_root = tmp.path().join("src");
     let ro_parent = src_root.join("readonly_parent");
@@ -1959,9 +1970,10 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
         },
         TestMode,
         &mut log,
+        &env,
     );
 
-    drop(scoped);
+    scoped.remove(&mut env);
     res.expect("bury should succeed even if an intermediate source dir is 0555");
 
     let ro_parent_abs = dunce::canonicalize(&ro_parent).unwrap();
@@ -1982,11 +1994,8 @@ fn test_issue_129_readonly_parent_dir_breaks_first_bury() {
 }
 #[test]
 fn test_parent_path_expansion() {
-    let _env_lock = aquire_lock();
-
-    let test_env = TestEnv::new();
-    let current_dir = env::current_dir().unwrap();
-    env::set_current_dir(&test_env.src).unwrap();
+    let mut test_env = TestEnv::new();
+    test_env.env.set_current_dir(&test_env.src);
 
     let test_data = TestData::new(
         &test_env,
@@ -2003,6 +2012,7 @@ fn test_parent_path_expansion() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
     //file is gone
@@ -2018,10 +2028,10 @@ fn test_parent_path_expansion() {
         },
         TestMode,
         &mut log,
+        &test_env.env,
     )
     .unwrap();
     //file is back
     assert!(test_data.path.exists());
     //reset the dir
-    env::set_current_dir(current_dir).unwrap();
 }
